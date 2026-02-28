@@ -2,7 +2,7 @@ const API_BASE_URL = "http://localhost:8000/api";
 
 function getToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+  return localStorage.getItem("accessToken") || localStorage.getItem("token");
 }
 
 async function handleResponse(response) {

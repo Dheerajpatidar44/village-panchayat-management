@@ -2,16 +2,40 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { MessageSquare, Image, Send, HelpCircle } from "lucide-react";
+import { MessageSquare, Image, Send, HelpCircle, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function NewComplaint() {
+  const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    complaint_type: "other",
+    subject: "",
+    description: "",
+    priority: "normal"
+  });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!formData.subject || !formData.description) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post("/complaints", formData);
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Failed to submit complaint:", err);
+      alert("Error submitting complaint");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -22,12 +46,11 @@ export default function NewComplaint() {
         </div>
         <h2 className="text-3xl font-bold text-slate-900">Shikayat Jama ho Gayi!</h2>
         <p className="text-slate-500 max-w-md">
-          Aapki samasya note kar li gayi hai. ID: <strong>COMP-#{Math.floor(Math.random() * 9000) + 1000}</strong>. 
-          Hum jald se jald iska samadhan karenge.
+          Aapki samasya note kar li gayi hai. Hum jald se jald iska samadhan karenge.
         </p>
         <div className="pt-4 flex gap-4">
-          <Button variant="outline" onClick={() => setSubmitted(false)}>Back to Dashboard</Button>
-          <Button className="bg-rose-600 hover:bg-rose-700">Track Complaint</Button>
+          <Button variant="outline" onClick={() => router.push("/citizen/dashboard")}>Back to Dashboard</Button>
+          <Button className="bg-rose-600 hover:bg-rose-700" onClick={() => router.push("/citizen/complaints/status")}>Track Complaint</Button>
         </div>
       </div>
     );
@@ -45,42 +68,59 @@ export default function NewComplaint() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Samasya ka Prakaar (Category)"
-                options={[
-                  { label: "Water (Paani)", value: "water" },
-                  { label: "Road (Sadak)", value: "road" },
-                  { label: "Electricity (Bijli)", value: "electricity" },
-                  { label: "Sanitation (Safai)", value: "sanitation" },
-                  { label: "Other (Anye)", value: "other" },
-                ]}
-              />
-              <Input label="Ward Number" placeholder="Ex: Ward 05" />
-            </div>
-
-            <Input label="Short Summary (Vishay)" placeholder="Ex: Gali ki light kharab hai" />
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Pura Vivran (Detailed Description)</label>
-              <textarea
-                className="w-full bg-white border border-border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-h-[150px]"
-                placeholder="Samasya ke baare me vistar se batayein..."
-              ></textarea>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900">Photo Upload (Optional)</h4>
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-primary/50 transition-all cursor-pointer">
-                <Image className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-medium text-slate-600">Samasya ki photo yahan kheinche ya upload karein</p>
-                <p className="text-xs text-slate-400 mt-1">Isse hume samasya samajhne me asani hogi</p>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Samasya ka Prakaar (Category)</label>
+                <select 
+                  className="w-full bg-slate-50 border-2 border-slate-100 px-4 py-3 text-sm font-semibold rounded-2xl transition-all focus:bg-white focus:border-primary/20 outline-none"
+                  value={formData.complaint_type}
+                  onChange={(e) => setFormData({...formData, complaint_type: e.target.value})}
+                >
+                  <option value="water">Water (Paani)</option>
+                  <option value="road">Road (Sadak)</option>
+                  <option value="electricity">Electricity (Bijli)</option>
+                  <option value="sanitation">Sanitation (Safai)</option>
+                  <option value="other">Other (Anye)</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Priority</label>
+                <select 
+                  className="w-full bg-slate-50 border-2 border-slate-100 px-4 py-3 text-sm font-semibold rounded-2xl transition-all focus:bg-white focus:border-primary/20 outline-none"
+                  value={formData.priority}
+                  onChange={(e) => setFormData({...formData, priority: e.target.value})}
+                >
+                  <option value="normal">Normal</option>
+                  <option value="high">Urgent (Zaroori)</option>
+                </select>
               </div>
             </div>
 
+            <div className="space-y-2">
+               <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Short Summary (Vishay)</label>
+               <input 
+                 className="w-full bg-slate-50 border-2 border-slate-100 px-4 py-3 text-sm font-semibold rounded-2xl transition-all focus:bg-white focus:border-primary/20 outline-none"
+                 placeholder="Ex: Gali ki light kharab hai" 
+                 value={formData.subject}
+                 onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                 required
+               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Pura Vivran (Detailed Description)</label>
+              <textarea
+                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/20 min-h-[150px] font-semibold text-sm"
+                placeholder="Samasya ke baare me vistar se batayein..."
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                required
+              ></textarea>
+            </div>
+
             <div className="flex gap-4 pt-4">
-              <Button type="button" variant="outline" className="flex-1">Cancel</Button>
-              <Button type="submit" className="flex-1 bg-primary py-6">
-                Submit Complaint <Send className="w-4 h-4 ml-2" />
+              <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>Cancel</Button>
+              <Button type="submit" disabled={loading} className="flex-1 bg-primary py-6">
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Submit Complaint <Send className="w-4 h-4 ml-2" /></>}
               </Button>
             </div>
           </form>

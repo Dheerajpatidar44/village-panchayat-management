@@ -1,79 +1,109 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FileText, CheckCircle, XCircle, User, ArrowRight } from "lucide-react";
+import { Search, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
-const pendingApprovals = [
-  { id: "CERT-1023", citizen: "Ramesh Kumar", type: "Income Certificate", clerk: "Rohan Das", date: "10 Jan 2026" },
-  { id: "CERT-1024", citizen: "Sita Devi", type: "Residence Certificate", clerk: "Maya Sharma", date: "10 Jan 2026" },
-];
+export default function ApprovalsPage() {
+  const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-export default function ApprovalPage() {
+  useEffect(() => {
+    loadCertificates();
+  }, []);
+
+  async function loadCertificates() {
+    try {
+      // Pending certificates needing final approval
+      const data = await api.get("/search?q=");
+      if (data && data.certificates) {
+        setCertificates(data.certificates.filter(c => c.status === "pending" || c.status === "verified"));
+      }
+    } catch (err) {
+      console.error("Failed to fetch approvals:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleAction = async (id, action) => {
+    try {
+      await api.put(`/certificates/${id}`, { status: action });
+      setCertificates(prev => prev.filter(c => c.id !== id));
+      alert(`Certificate successfully ${action}!`);
+    } catch (err) {
+      console.error("Failed action:", err);
+      alert("Error processing action.");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Final Approvals</h1>
-        <p className="text-slate-500">Clerk verified applications waiting for your digital signature</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        {pendingApprovals.map((app) => (
-          <Card key={app.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row items-center gap-8">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-3 rounded-xl">
-                      <FileText className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900">{app.type}</h3>
-                      <p className="text-sm text-slate-500">App ID: {app.id}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-12 border-t border-slate-50 pt-4">
-                    <div>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Citizen</p>
-                      <div className="flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="text-sm font-semibold">{app.citizen}</span>
-                      </div>
-                    </div>
-                    <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Clerk Verified By</p>
-                        <span className="text-sm font-semibold text-emerald-600">{app.clerk}</span>
-                    </div>
-                    <div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Verified Date</p>
-                        <span className="text-sm font-semibold">{app.date}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-row md:flex-col gap-3 w-full md:w-auto">
-                  <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200">
-                    <CheckCircle className="w-4 h-4 mr-2" /> Approve & Sign
-                  </Button>
-                  <Button variant="outline" className="flex-1 text-rose-600 border-rose-100 hover:bg-rose-50">
-                    <XCircle className="w-4 h-4 mr-2" /> Reject
-                  </Button>
-                  <Button variant="ghost" className="flex-1 text-xs">View History</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {pendingApprovals.length === 0 && (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
-          <CheckCircle className="w-12 h-12 text-emerald-200 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-slate-900">Sab Kaam Ho Gaya!</h3>
-          <p className="text-slate-500">Abhi koi application approval ke liye nahi hai.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Final Approvals</h1>
+          <p className="text-slate-500">Approve certificates and documents verified by clerks</p>
         </div>
-      )}
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            ) : certificates.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-50" />
+                <span className="font-bold text-lg text-slate-700 block">All Caught Up!</span>
+                No pending approvals require your attention.
+              </div>
+            ) : (
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 border-b border-border">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Application ID</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Citizen</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Document Type</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {certificates.map((cert) => (
+                    <tr key={cert.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-slate-900">{cert.application_number}</td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm font-semibold text-slate-900">{cert.citizen?.full_name}</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-wider">{cert.citizen?.mobile}</p>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-700">{cert.certificate_type}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-700">
+                          {cert.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                           <Button size="sm" onClick={() => handleAction(cert.id, 'approved')} className="bg-emerald-500 hover:bg-emerald-600 !h-8 px-3">
+                             Approve
+                           </Button>
+                           <Button size="sm" variant="outline" onClick={() => handleAction(cert.id, 'rejected')} className="text-rose-500 hover:bg-rose-50 border-rose-100 !h-8 px-3">
+                             Reject
+                           </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

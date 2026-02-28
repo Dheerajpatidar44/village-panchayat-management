@@ -78,10 +78,25 @@ model User {
   notices               Notice[]
   scheme_applications   SchemeApplication[]
   revenues              Revenue[]            @relation("CollectedBy")
+  notifications         Notification[]
 
   // Admin actions
   reviewed_requests RegistrationRequest[] @relation("ReviewedBy")
   processed_certs   Certificate[]         @relation("CertProcessedBy")
+}
+
+// ─── 1.5. Notifications ──────────────────────────────────────────────────────
+
+model Notification {
+  id         String   @id @default(uuid())
+  user_id    String
+  title      String
+  message    String   @db.Text
+  type       String   @default("info") // "alert", "success", "info"
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 // ─── 2. Registration Requests ────────────────────────────────────────────────

@@ -81,7 +81,7 @@ export function Sidebar({ role = "citizen" }) {
         <nav className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-280px)] pr-2 -mr-2 scrollbar-none relative z-10">
           {links.map((link) => {
             const Icon = link.icon;
-            const isActive = pathname === link.href;
+            const isActive = pathname === link.href || (link.href !== `/${role}/dashboard` && pathname.startsWith(link.href + '/'));
             return (
               <Link
                 key={link.href}

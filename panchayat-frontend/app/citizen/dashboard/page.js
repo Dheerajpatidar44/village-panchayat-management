@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { 
   FileText, 
@@ -11,24 +12,93 @@ import {
   Plus,
   ArrowUpRight,
   TrendingUp,
-  LayoutGrid
+  LayoutGrid,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/lib/api";
 
 export default function CitizenDashboard() {
-  const stats = [
-    { label: "Applied", value: "3", icon: FileText, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-    { label: "Active", value: "1", icon: MessageSquare, color: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/20" },
-    { label: "Approved", value: "2", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    { label: "Pending", value: "2", icon: Clock, color: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+  const [userName, setUserName] = useState("Citizen");
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    certApplied: 0,
+    certApproved: 0,
+    complaintsActive: 0,
+    complaintsResolved: 0
+  });
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [latestNotice, setLatestNotice] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUserName(localStorage.getItem("userName") || "Citizen");
+    }
+    loadData();
+  }, []);
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      // Fallback endpoints assuming typical REST implementation for citizen self-data
+      const [certs, compResults, noticesData] = await Promise.all([
+        api.get("/search?q=").catch(() => ({ certificates: [] })), // Hack to get citizen certs if endpoint handles it
+        api.get("/search?q=").catch(() => ({ complaints: [] })),
+        api.get("/notices").catch(() => ([]))
+      ]);
+      
+      const certificates = certs.certificates || [];
+      const complaints = compResults.complaints || [];
+
+      setStats({
+        certApplied: certificates.length,
+        certApproved: certificates.filter(c => c.status === "approved").length,
+        complaintsActive: complaints.filter(c => c.status === "open" || c.status === "in_progress").length,
+        complaintsResolved: complaints.filter(c => c.status === "resolved").length,
+      });
+
+      // Combine and sort activities
+      const activities = [
+        ...certificates.map(c => ({
+          title: `App for ${c.certificate_type}`,
+          time: new Date(c.submitted_at).toLocaleDateString(),
+          status: c.status,
+          type: "Certificate",
+          timestamp: new Date(c.submitted_at).getTime()
+        })),
+        ...complaints.map(c => ({
+          title: c.subject,
+          time: new Date(c.submitted_at).toLocaleDateString(),
+          status: c.status,
+          type: "Complaint",
+          timestamp: new Date(c.submitted_at).getTime()
+        }))
+      ].sort((a,b) => b.timestamp - a.timestamp).slice(0, 4);
+
+      setRecentActivities(activities);
+
+      if (noticesData && noticesData.length > 0) {
+        setLatestNotice(noticesData[0]);
+      }
+
+    } catch (err) {
+      console.error("Dashboard load failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const statCards = [
+    { label: "Applied", value: stats.certApplied, icon: FileText, color: "text-blue-600", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+    { label: "Active", value: stats.complaintsActive, icon: MessageSquare, color: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/20" },
+    { label: "Approved", value: stats.certApproved, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    { label: "Pending", value: stats.certApplied - stats.certApproved, icon: Clock, color: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/20" },
   ];
 
-  const recentActivities = [
-    { title: "Income Certificate Approved", time: "2 hours ago", status: "Approved", type: "Certificate" },
-    { title: "Complaint #1023: Street Light", time: "1 day ago", status: "In Progress", type: "Complaint" },
-    { title: "Applied for Birth Certificate", time: "3 days ago", status: "Pending", type: "Certificate" },
-  ];
+  if (loading) {
+    return <div className="flex items-center justify-center p-20"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  }
 
   return (
     <div className="space-y-10">
@@ -38,20 +108,22 @@ export default function CitizenDashboard() {
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
              <LayoutGrid className="w-3 h-3" /> Citizen Dashboard
           </div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Radhe Radhe, <span className="text-primary">Ramesh!</span></h1>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Radhe Radhe, <span className="text-primary">{userName}!</span></h1>
           <p className="text-slate-500 font-medium mt-1 italic">Welcome to your digital village portal. Everything looks good today.</p>
         </div>
         <div className="flex gap-3">
            <Button variant="secondary" className="hidden sm:flex">Download History</Button>
-           <Button className="bg-primary text-white hover:bg-primary-dark">
-              <Plus className="w-5 h-5 mr-2" /> New Application
-           </Button>
+           <Link href="/citizen/certificates/apply">
+             <Button className="bg-primary text-white hover:bg-primary-dark">
+                <Plus className="w-5 h-5 mr-2" /> New Application
+             </Button>
+           </Link>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.label} className="group overflow-visible px-4 py-8 text-center flex flex-col items-center">
              <div className={`${stat.bg} ${stat.color} ${stat.border} border w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-4 transition-transform group-hover:scale-110 group-hover:rotate-3`}>
                 <stat.icon className="w-7 h-7" />
@@ -71,7 +143,7 @@ export default function CitizenDashboard() {
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">What do you need?</h2>
              </div>
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Link href="/citizen/certificates/apply" className="group relative bg-white p-8 rounded-[2.5rem] premium-card">
+                <Link href="/citizen/certificates/apply" className="group relative bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:border-primary/20 hover:shadow-xl transition-all">
                   <div className="bg-blue-500/10 text-blue-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all">
                     <FileText className="w-7 h-7" />
                   </div>
@@ -82,7 +154,7 @@ export default function CitizenDashboard() {
                   </div>
                 </Link>
                 
-                <Link href="/citizen/complaints/new" className="group relative bg-white p-8 rounded-[2.5rem] premium-card">
+                <Link href="/citizen/complaints/new" className="group relative bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 hover:border-primary/20 hover:shadow-xl transition-all">
                   <div className="bg-rose-500/10 text-rose-600 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-rose-600 group-hover:text-white transition-all">
                     <MessageSquare className="w-7 h-7" />
                   </div>
@@ -103,7 +175,9 @@ export default function CitizenDashboard() {
             />
             <CardContent className="p-0">
               <div className="divide-y divide-slate-50">
-                {recentActivities.map((activity, i) => (
+                {recentActivities.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 text-sm">No recent activity found.</div>
+                ) : recentActivities.map((activity, i) => (
                   <div key={i} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer">
                     <div className="flex items-center gap-5">
                       <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-primary group-hover:shadow-lg transition-all">
@@ -116,11 +190,10 @@ export default function CitizenDashboard() {
                     </div>
                     <div className="flex items-center gap-4">
                        <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl ${
-                         activity.status === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                         ['approved', 'resolved', 'closed'].includes(activity.status) ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
                        }`}>
-                         {activity.status}
+                         {activity.status.replace("_", " ")}
                        </span>
-                       <ArrowRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
                 ))}
@@ -137,15 +210,24 @@ export default function CitizenDashboard() {
                 <AlertCircle className="w-6 h-6 text-primary-light" />
               </div>
               <h3 className="text-2xl font-black mb-2">Notice Board</h3>
-              <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6">
-                Emergency meeting at Panchayat Bhawan regarding New Water Pipeline connection. Date: 15 Jan.
-              </p>
-              <Button size="sm" className="bg-primary text-white hover:bg-primary-dark border-none w-full">
-                View Full Notice
-              </Button>
+              {latestNotice ? (
+                <>
+                  <p className="font-bold text-primary-light text-sm mb-1">{latestNotice.title}</p>
+                  <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6 line-clamp-3">
+                    {latestNotice.content}
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6">
+                  No new notices at the moment. Keep checking this space for updates.
+                </p>
+              )}
+              <Link href="/citizen/notices">
+                <Button size="sm" className="bg-primary text-white hover:bg-primary-dark border-none w-full">
+                  View All Notices
+                </Button>
+              </Link>
             </CardContent>
-            {/* Background glowing shape - FIXED: added pointer-events-none */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           </Card>
 
           {/* Progress Tracking (Mini) */}

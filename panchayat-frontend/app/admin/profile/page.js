@@ -1,115 +1,94 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { User, Mail, Phone, MapPin, Award, Calendar, ShieldAlert, Edit, Star } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { User, Mail, Phone, Edit, Key, Shield, LogOut, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function AdminProfile() {
-  const adminData = {
-    name: "Ramesh Kumar",
-    role: "Panchayat Administrator (Sarpanch)",
-    village: "Sarahi",
-    tenure: "2023 - 2028",
-    email: "ramesh.sarpanch@gram.in",
-    phone: "+91 88XXX XXXXX",
-    jurisdiction: "Sarahi Block A & B",
-    rating: "4.8/5.0",
-  };
+  const [user, setUser] = useState(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    try {
+      const data = await api.get("/auth/me");
+      setUser(data);
+      localStorage.setItem("userName", data.full_name);
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+    }
+  }
+
+  if (!user) {
+    return <div className="p-20 flex justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Prashasan <span className="text-primary">Profile</span></h1>
-          <p className="text-slate-500 font-medium mt-1">Official profile of the Village Administrator.</p>
+          <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+          <p className="text-slate-500">Manage your administrative credentials and personal details</p>
         </div>
-        <Button className="gap-2 bg-primary text-white"><Edit className="w-4 h-4" /> Edit Profile</Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-1 border-primary/20 bg-primary/5">
-          <CardContent className="p-10 flex flex-col items-center text-center">
-            <div className="relative mb-6">
-               <div className="w-32 h-32 bg-white rounded-[2.5rem] flex items-center justify-center border-4 border-primary/20 shadow-2xl overflow-hidden">
-                  <User className="w-16 h-16 text-primary" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <Card className="md:col-span-1 border-primary/10">
+            <CardContent className="p-6 text-center space-y-4">
+               <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-emerald-700/20 rounded-full mx-auto flex items-center justify-center border-4 border-white shadow-xl">
+                  <User className="w-12 h-12 text-primary" />
                </div>
-               <div className="absolute -bottom-2 -right-2 bg-amber-400 text-white p-2 rounded-2xl shadow-lg">
-                  <Star className="w-5 h-5 fill-current" />
+               <div>
+                  <h3 className="text-xl font-bold text-slate-900">{user.full_name}</h3>
+                  <p className="text-sm font-bold text-primary uppercase tracking-widest mt-1">System {user.role}</p>
                </div>
-            </div>
-            <h3 className="text-2xl font-black text-slate-900">{adminData.name}</h3>
-            <p className="text-primary font-black text-xs uppercase tracking-widest mt-1">{adminData.role}</p>
-            
-            <div className="w-full h-px bg-primary/10 my-8" />
-            
-            <div className="grid grid-cols-2 gap-4 w-full">
-               <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Tenure</p>
-                  <p className="text-xs font-black text-slate-900">{adminData.tenure}</p>
+               <div className="pt-4 border-t border-slate-100 flex justify-center gap-2">
+                  <Button variant="outline" className="w-full text-xs gap-2"><Edit className="w-3 h-3" /> Edit Photo</Button>
                </div>
-               <div className="bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Rating</p>
-                  <p className="text-xs font-black text-emerald-600">{adminData.rating}</p>
-               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+         </Card>
 
-        <Card className="lg:col-span-2">
-          <CardHeader title="Administration Scope" subtitle="Official area of jurisdiction and direct responsibilities" />
-          <CardContent className="space-y-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+         <Card className="md:col-span-2">
+            <CardHeader title="Personal Information" />
+            <CardContent className="space-y-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input className="w-full bg-slate-50 border-2 border-slate-100 pl-11 pr-4 py-3 text-sm font-bold rounded-xl text-slate-700 outline-none" value={user.full_name} readOnly />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Email Address</label>
+                    <div className="relative">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input className="w-full bg-slate-50 border-2 border-slate-100 pl-11 pr-4 py-3 text-sm font-bold rounded-xl text-slate-700 outline-none" value={user.email} readOnly />
+                    </div>
+                  </div>
+               </div>
+               
                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Mobile Contact</label>
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                     <Phone className="w-4 h-4 text-slate-400" />
-                     <span className="font-bold text-slate-900">{adminData.phone}</span>
+                  <label className="text-[10px] font-black tracking-widest uppercase text-slate-400 pl-1">Mobile Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input className="w-full bg-slate-50 border-2 border-slate-100 pl-11 pr-4 py-3 text-sm font-bold rounded-xl text-slate-700 outline-none" value={user.mobile || "Not provided"} readOnly />
                   </div>
                </div>
-               <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Official Email</label>
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                     <Mail className="w-4 h-4 text-slate-400" />
-                     <span className="font-bold text-slate-900">{adminData.email}</span>
-                  </div>
+
+               <div className="pt-6 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Button className="w-full gap-2"><Key className="w-4 h-4" /> Change Password</Button>
+                  <Button variant="outline" className="w-full gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 border-rose-100" onClick={() => { localStorage.clear(); router.push('/login'); }}><LogOut className="w-4 h-4" /> Logout Safely</Button>
                </div>
-               <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Primary Village</label>
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                     <MapPin className="w-4 h-4 text-slate-400" />
-                     <span className="font-bold text-slate-900">{adminData.village}</span>
-                  </div>
-               </div>
-               <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Jurisdiction</label>
-                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                     <ShieldAlert className="w-4 h-4 text-slate-400" />
-                     <span className="font-bold text-slate-900">{adminData.jurisdiction}</span>
-                  </div>
-               </div>
-            </div>
-            
-            <div className="p-6 bg-slate-900 rounded-[2rem] text-white relative overflow-hidden">
-               <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-4">
-                     <Award className="w-6 h-6 text-primary-light" />
-                     <h4 className="text-lg font-black tracking-tight">Administrative Honors</h4>
-                  </div>
-                  <ul className="space-y-2">
-                     <li className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-primary-light rounded-full" />
-                        Best Managed Village Award (MP Rural Dev, 2024)
-                     </li>
-                     <li className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-primary-light rounded-full" />
-                        100% Digitization Target Achieved (Quarter 4, 2025)
-                     </li>
-                  </ul>
-               </div>
-               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+         </Card>
       </div>
     </div>
   );

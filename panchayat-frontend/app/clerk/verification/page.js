@@ -1,16 +1,44 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FileText, CheckCircle, XCircle, ExternalLink, Clock } from "lucide-react";
-
-const requests = [
-  { id: "REQ-001", name: "Suresh Meena", type: "Income Certificate", date: "10 Jan 2026", status: "New" },
-  { id: "REQ-002", name: "Anita Devi", type: "Residence Certificate", date: "10 Jan 2026", status: "Reviewing" },
-  { id: "REQ-003", name: "Rajesh Soni", type: "Birth Certificate", date: "09 Jan 2026", status: "New" },
-];
+import { FileText, CheckCircle, XCircle, ExternalLink, Loader2, CheckCircle2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function CertificateVerification() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  async function loadRequests() {
+    try {
+      setLoading(true);
+      const data = await api.get("/search?q=");
+      if (data && data.certificates) {
+        setRequests(data.certificates.filter(c => c.status === "pending"));
+      }
+    } catch (err) {
+      console.error("Failed to load requests:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleVerify = async (id, status) => {
+    try {
+      await api.put(`/certificates/${id}`, { status });
+      setRequests(prev => prev.filter(r => r.id !== id));
+      alert(`Certificate ${status} successfully.`);
+    } catch (err) {
+      console.error("Failed to verify:", err);
+      alert("Error updating certificate.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -21,7 +49,15 @@ export default function CertificateVerification() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {requests.map((request) => (
+        {loading ? (
+          <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
+        ) : requests.length === 0 ? (
+          <div className="text-center p-12 text-slate-500">
+            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3 opacity-50" />
+            <span className="font-bold text-lg text-slate-700 block">No pending Verifications</span>
+            You have verified all certificates.
+          </div>
+        ) : requests.map((request) => (
           <Card key={request.id}>
             <CardContent className="p-0">
               <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
@@ -32,12 +68,12 @@ export default function CertificateVerification() {
                         <FileText className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900">{request.name}</h4>
-                        <p className="text-xs text-slate-500">Applied for {request.type}</p>
+                        <h4 className="font-bold text-slate-900">{request.citizen?.full_name}</h4>
+                        <p className="text-xs text-slate-500">Applied for {request.certificate_type}</p>
                       </div>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                      request.status === "New" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                      request.status === "pending" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
                     }`}>
                       {request.status}
                     </span>
@@ -45,24 +81,24 @@ export default function CertificateVerification() {
 
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <span className="text-slate-400 block mb-1">Request ID</span>
-                      <span className="font-semibold text-slate-700">{request.id}</span>
+                      <span className="text-slate-400 block mb-1">Application No</span>
+                      <span className="font-semibold text-slate-700">{request.application_number}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block mb-1">Date Submitted</span>
-                      <span className="font-semibold text-slate-700">{request.date}</span>
+                      <span className="font-semibold text-slate-700">{new Date(request.submitted_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-6 bg-slate-50 w-full md:w-64 flex flex-col justify-center space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start text-xs">
+                  <Button variant="outline" size="sm" className="w-full justify-start text-xs border-primary/20 text-primary">
                     <ExternalLink className="w-3.5 h-3.5 mr-2" /> View Documents
                   </Button>
-                  <Button size="sm" className="w-full justify-start text-xs bg-emerald-600 hover:bg-emerald-700">
+                  <Button size="sm" onClick={() => handleVerify(request.id, 'verified')} className="w-full justify-start text-xs bg-emerald-600 hover:bg-emerald-700">
                     <CheckCircle className="w-3.5 h-3.5 mr-2" /> Verify & Push
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start text-xs text-rose-600 border-rose-100 hover:bg-rose-50">
+                  <Button size="sm" variant="outline" onClick={() => handleVerify(request.id, 'rejected')} className="w-full justify-start text-xs text-rose-600 border-rose-100 hover:bg-rose-50">
                     <XCircle className="w-3.5 h-3.5 mr-2" /> Reject
                   </Button>
                 </div>

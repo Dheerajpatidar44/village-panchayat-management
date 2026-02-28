@@ -15,6 +15,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import searchRoutes from './routes/search.js';
 import reportsRoutes from './routes/reports.js';
 import settingsRoutes from './routes/settings.js';
+import notificationsRoutes from './routes/notifications.js';
 
 import { errorHandler } from './middlewares/errorHandler.js';
 
@@ -44,6 +45,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // 404 handler
 app.use((req, res) => {
